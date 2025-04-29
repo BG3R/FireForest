@@ -1,262 +1,230 @@
-# This Python 3 environment comes with many helpful analytics libraries installed
-# It is defined by the kaggle/python docker image: https://github.com/kaggle/docker-python
-# For example, here's several helpful packages to load in
-
-import numpy as np  # linear algebra
-import pandas as pd  # data processing, CSV file I/O (e.g. pd.read_csv)
-# import bt  # Removing bt import as it's causing issues and not used correctly
-
+import pandas as pd
+import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-import geopandas as gpd
 
-import folium
-from folium import Choropleth, Circle, Marker
-from folium.plugins import HeatMap, MarkerCluster
+#Colunas utilizadas
 
-import matplotlib.pyplot as plt
+#estado : Para identificar o número de ocorrências por estado.
+#bioma : Para categorizar os incêndios por biomas.
+#frp : Para analisar a distribuição do poder radiativo do fogo.
+#numero_dias_sem_chuva e risco_fogo : Para correlacionar dias sem chuva com o risco de fogo.
+#data_pas : Para analisar a sazonalidade dos incêndios ao longo dos meses.
 
-# Input data files are available in the "../input/" directory.
-# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
+#Gráficos gerados
 
-import os
-
-for dirname, _, filenames in os.walk('/kaggle/input'):
-    for filename in filenames:
-        print(os.path.join(dirname, filename))
-
-# Any results you write to the current directory are saved as output.
+#Barras para contagem por estado e bioma.
+#Histogramas para distribuição do FRP.
+#Gráficos dispersos para relação entre dias sem chuva e risco de fogo.
+#Barras empilhadas para ocorrências por mês e bioma.
 
 
-# using pandas library and 'read_csv' function to read amazon csv file
-# as file already formated for us from Kaggle
+# Carregar os dados do arquivo CSV
+file_path = 'focos_br_todos-sats_2024.csv'
+data = pd.read_csv(file_path)
 
-fire_file = pd.read_csv('amazon.csv'
-                        , encoding='latin1')
-fire_file.head(5)
+# Converter a coluna de datas para o formato datetime
+data['data_pas'] = pd.to_datetime(data['data_pas'])
+data['mes'] = data['data_pas'].dt.month  # Extrair o mês da data
 
-latitude = {'Acre': -9.02, 'Alagoas': -9.57, 'Amapa': 2.05, 'Amazonas': -5.00, 'Bahia': -12.00, 'Ceara': -5.00,
+# Função para gerar gráficos
+def plot_and_save(title, xlabel, ylabel, data, kind='bar', filename=None):
+    data.plot(kind=kind, figsize=(10, 6), legend=False)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.tight_layout()
+    if filename:
+        plt.savefig(filename)
+    plt.show()
 
-            'Distrito Federal': -15.45, 'Espirito Santo': -20.00, 'Goias': -15.55, 'Maranhao': -5.00,
-            'Mato Grosso': -14.00
+# Número de ocorrências de incêndios por estado
+ocorrencias_por_estado = data['estado'].value_counts()
+plot_and_save(
+    title='Número de Ocorrências de Incêndios por Estado',
+    xlabel='Estado',
+    ylabel='Número de Ocorrências',
+    data=ocorrencias_por_estado,
+    filename='ocorrencias_por_estado.png'
+)
 
-            , 'Minas Gerais': -18.50, 'Pará': -3.20, 'Paraiba': -7.00, 'Pernambuco': -8.00, 'Piau': -7.00,
-            'Rio': -22.90,
 
-            'Rondonia': -11.00, 'Roraima': -2.00, 'Santa Catarina': -27.25, 'Sao Paulo': -23.32,
-            'Sergipe': -10.30,
+# Contar o número de ocorrências por estado
+ocorrencias_por_estado = data['estado'].value_counts()
 
-            'Tocantins': -10.00
-            }
+# Estados com mais e menos ocorrências (top 17 e bottom 10)
+top_17_estados = ocorrencias_por_estado.head(17)
+bottom_10_estados = ocorrencias_por_estado.tail(10)
 
-longitude = {
-    'Acre': -70.8120, 'Alagoas': -36.7820, 'Amapa': -50.50, 'Amazonas': -65.00, 'Bahia': -42.00, 'Ceara': -40.00,
+# Imprimir os estados com mais ocorrências no console
+print("Top 17 estados com mais ocorrências:")
+print(top_17_estados)
 
-    'Distrito Federal': -47.45, 'Espirito Santo': -40.45, 'Goias': -50.10, 'Maranhao': -46.00,
-    'Mato Grosso': -55.00,
+# Imprimir os estados com menos ocorrências no console
+print("\nTop 10 estados com menos ocorrências:")
+print(bottom_10_estados)
 
-    'Minas Gerais': -46.00, 'Pará': -52.00, 'Paraiba': -36.00, 'Pernambuco': -37.00, 'Piau': -73.00,
-    'Rio': -43.17,
+# Gráfico dos estados com mais ocorrências
+plt.figure(figsize=(14, 7))
+top_17_estados.plot(kind='bar', color='blue')
+plt.title('Top 17 Estados com Mais Ocorrências de Incêndios')
+plt.xlabel('Estado')
+plt.ylabel('Número de Ocorrências')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.savefig('top_17_estados_mais_ocorrencias.png')
+plt.show()
 
-    'Rondonia': -63.00, 'Roraima': -61.30, 'Santa Catarina': -48.30, 'Sao Paulo': -46.37, 'Sergipe': -37.30,
+# Gráfico dos estados com menos ocorrências
+plt.figure(figsize=(12, 6))
+bottom_10_estados.plot(kind='bar', color='red')
+plt.title('Top 10 Estados com Menos Ocorrências de Incêndios')
+plt.xlabel('Estado')
+plt.ylabel('Número de Ocorrências')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.savefig('top_10_estados_menos_ocorrencias.png')
+plt.show()
 
-    'Tocantins': -48.00
+# Encontrar o estado com mais e menos ocorrências
+estado_mais_ocorrencias = ocorrencias_por_estado.idxmax()
+estado_menos_ocorrencias = ocorrencias_por_estado.idxmin()
+
+print(f"\nEstado com mais ocorrências: {estado_mais_ocorrencias} ({ocorrencias_por_estado.max()})")
+print(f"Estado com menos ocorrências: {estado_menos_ocorrencias} ({ocorrencias_por_estado.min()})")
+
+
+# Número de ocorrências de incêndios por bioma
+ocorrencias_por_bioma = data['bioma'].value_counts()
+plot_and_save(
+    title='Número de Ocorrências de Incêndios por Bioma',
+    xlabel='Bioma',
+    ylabel='Número de Ocorrências',
+    data=ocorrencias_por_bioma,
+    filename='ocorrencias_por_bioma.png'
+)
+
+# Número de ocorrências por mês e bioma
+ocorrencias_mes_bioma = data.groupby(['mes', 'bioma']).size().unstack()
+ocorrencias_mes_bioma.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.title('Número de Ocorrências por Mês e Bioma')
+plt.xlabel('Mês')
+plt.ylabel('Número de Ocorrências')
+plt.tight_layout()
+plt.savefig('ocorrencias_mes_bioma.png')
+plt.show()
+
+# Distribuição do poder radiativo do fogo (FRP)
+sns.histplot(data['frp'], kde=True, bins=30)
+plt.title('Distribuição do Poder Radiativo do Fogo (FRP)')
+plt.xlabel('FRP')
+plt.ylabel('Frequência')
+plt.tight_layout()
+plt.savefig('distribuicao_frp.png')
+plt.show()
+
+# Relação entre número de dias sem chuva e risco de fogo
+sns.scatterplot(x=data['numero_dias_sem_chuva'], y=data['risco_fogo'])
+plt.title('Relação entre Dias sem Chuva e Risco de Fogo')
+plt.xlabel('Dias sem Chuva')
+plt.ylabel('Risco de Fogo')
+plt.tight_layout()
+plt.savefig('relacao_dias_sem_chuva_risco_fogo.png')
+plt.show()
+
+# Ocorrências ao longo dos meses
+ocorrencias_mensais = data.groupby('mes').size()
+plot_and_save(
+    title='Ocorrências de Incêndios ao Longo dos Meses',
+    xlabel='Mês',
+    ylabel='Número de Ocorrências',
+    data=ocorrencias_mensais,
+    filename='ocorrencias_mensais.png'
+)
+
+# Distribuição do número de dias sem chuva
+dias_sem_chuva = data['numero_dias_sem_chuva'].value_counts().sort_index()
+plot_and_save(
+    title='Distribuição do Número de Dias sem Chuva',
+    xlabel='Dias sem Chuva',
+    ylabel='Frequência',
+    data=dias_sem_chuva,
+    filename='dias_sem_chuva.png'
+)
+
+# Carregar os dados do arquivo CSV
+file_path = 'focos_br_todos-sats_2024.csv'  # Substitua pelo caminho correto do arquivo
+data = pd.read_csv(file_path)
+
+# Carregar o GeoJSON do Brasil (disponível publicamente ou use outro arquivo apropriado)
+geojson_url = "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
+
+# Ajustar os dados para contagem de ocorrências por estado
+ocorrencias_por_estado = data['estado'].value_counts().reset_index()
+ocorrencias_por_estado.columns = ['estado', 'ocorrencias']
+
+# Criar um dicionário para normalizar os nomes dos estados (caso necessário)
+estado_nome_map = {
+    "ACRE": "Acre",
+    "ALAGOAS": "Alagoas",
+    "AMAZONAS": "Amazonas",
+    "BAHIA": "Bahia",
+    "CEARÁ": "Ceará",
+    "DISTRITO FEDERAL": "Distrito Federal",
+    "ESPÍRITO SANTO": "Espírito Santo",
+    "GOIÁS": "Goiás",
+    "MARANHÃO": "Maranhão",
+    "MATO GROSSO": "Mato Grosso",
+    "MATO GROSSO DO SUL": "Mato Grosso do Sul",
+    "MINAS GERAIS": "Minas Gerais",
+    "PARÁ": "Pará",
+    "PARAÍBA": "Paraíba",
+    "PARANÁ": "Paraná",
+    "PERNAMBUCO": "Pernambuco",
+    "PIAUÍ": "Piauí",
+    "RIO DE JANEIRO": "Rio de Janeiro",
+    "RIO GRANDE DO NORTE": "Rio Grande do Norte",
+    "RIO GRANDE DO SUL": "Rio Grande do Sul",
+    "RONDÔNIA": "Rondônia",
+    "RORAIMA": "Roraima",
+    "SANTA CATARINA": "Santa Catarina",
+    "SÃO PAULO": "São Paulo",
+    "SERGIPE": "Sergipe",
+    "TOCANTINS": "Tocantins"
 }
 
-fire_file['latitude'] = fire_file['state'].map(latitude)
-fire_file['longitude'] = fire_file['state'].map(longitude)
-fire_file
+# Normalizar os nomes dos estados no DataFrame
+ocorrencias_por_estado['estado'] = ocorrencias_por_estado['estado'].map(estado_nome_map)
 
-# g=bt(font_family='Comic Sans MS',color='Red',font_size=19)
-# g.printbeautiful('States of Brazil ')
+# 1º Gráfico: Ocorrências de incêndios por estado
+fig1 = px.choropleth(
+    ocorrencias_por_estado,
+    geojson=geojson_url,
+    locations='estado',
+    featureidkey='properties.name',
+    color='ocorrencias',
+    color_continuous_scale="Reds",
+    title="Ocorrências de Incêndios por Estado no Brasil"
+)
+fig1.update_geos(fitbounds="locations", visible=False)
+fig1.show()
 
-year_fires = fire_file[fire_file.year == 1998]  # to see the monthly fires trend for year 1998
-year_fires
+# 2º Gráfico: Mapeamento de áreas de risco (baseado no risco_fogo médio por estado)
+risco_fogo_por_estado = data.groupby('estado')['risco_fogo'].mean().reset_index()
+risco_fogo_por_estado.columns = ['estado', 'risco_fogo']
+risco_fogo_por_estado['estado'] = risco_fogo_por_estado['estado'].map(estado_nome_map)
 
-
-# Function for displaying the map
-def embed_map(m, file_name):
-    from IPython.display import IFrame
-
-    m.save(file_name)
-    return IFrame(file_name, width='100%', height='500px')
-
-
-# Create a base map
-m_4 = folium.Map(location=[-14.23, -51.92], tiles='cartodbpositron', zoom_start=4)
-
-
-def color_producer(val):
-    if val == 'january':
-        return 'darkred'
-
-    elif val == 'feburary':
-        return 'blue'
-
-    elif val == 'march':
-        return 'darkgreen'
-
-    elif val == 'april':
-        return 'green'
-
-    elif val == 'may':
-        return 'yellow'
-
-    elif val == 'june':
-        return 'orange'
-
-    elif val == 'july':
-        return 'red'
-
-    elif val == 'september':
-        return 'darkpurple'
-
-    elif val == 'october':
-        return 'black'
-
-    elif val == 'november':
-        return 'lightred'
-    elif val == 'december':
-        return 'lightgreen'
+fig2 = px.choropleth(
+    risco_fogo_por_estado,
+    geojson=geojson_url,
+    locations='estado',
+    featureidkey='properties.name',
+    color='risco_fogo',
+    color_continuous_scale="Oranges",
+    title="Mapeamento de Áreas de Risco de Incêndio no Brasil"
+)
+fig2.update_geos(fitbounds="locations", visible=False)
+fig2.show()
 
 
-# Add a bubble map to the base map
-for i, row in year_fires.iterrows():
-    Circle(
-        location=[row['latitude'], row['longitude']],
-        radius=20,
-        color=color_producer(row['month'])).add_to(m_4)
-
-# Display the map
-embed_map(m_4, 'm_4.html')
-
-months_portugese = list(pd.unique(fire_file['month']))
-months_english = ['january', 'feburary', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october',
-                  'november', 'december']
-dict_month = dict(zip(months_portugese, months_english))
-dict_month
-
-fire_file.month = fire_file['month'].map(dict_month)
-fire_file
-
-# brazil_states_markdown=bt(font_family='Times New Roman',color='blue')
-# brazil_states_markdown.printbeautiful('STATES OF BRAZIL')
-
-fire_file.isnull().sum()
-
-# brazil_eda_markdown=bt(font_family='Time New Roman',font_size=20,color='Purple')
-# brazil_eda_markdown.printbeautiful('STATES OF BRAZIL')
-fire_file.state.unique()
-
-# brazil_eda_markdown=bt(font_family='Time New Roman',font_size=20,color='Purple')
-# brazil_eda_markdown.printbeautiful('DATA VISUALIZATION for BRAZL FOREST FIRES')
-
-# comic = bt(font_family='Time New Roman', color='green',font_size=20)
-# comic.printbeautiful('TOP 5 STATES RECORDING HIGHEST FOREST FIRES FROM 1998 TO 2017')
-
-total_state_fires = fire_file.groupby('state')  # gropuing dataframe state wise
-
-states_names = list(fire_file.state.unique())  # name of each state present in Dataset
-
-top_5_states_numbers = []  # to hold the numbers for TOP 5 places that caught most fires from 1998 to 2017
-top_5_states_names = []  # to hold the names for TOP 5 places that caught most fires from 1998 to 2017
-
-for state in states_names:
-    top_5_states_numbers.append(total_state_fires.get_group(state).number.sum())
-    # sum of all fires that took place in each state from 1998 to 2017
-    top_5_states_names.append(state)
-
-df_total_fires = pd.DataFrame(data={'States': top_5_states_names,
-                                     'Total_Fires': top_5_states_numbers}, columns=['States', 'Total_Fires'])
-
-df_total_fires = df_total_fires.sort_values(['Total_Fires'], ascending=False).iloc[:5]
-
-sns.set_style('darkgrid')
-plt.figure(figsize=(15, 7))
-
-sns.barplot(x='States', y='Total_Fires', data=df_total_fires, palette='winter')
-plt.xlabel('STATES', fontsize=20)
-plt.ylabel('HIGHEST NUMBER OF FIRES', fontsize=15)
-
-
-# mato_grosso_markdown=bt(font_family='Time New Roman',color='#008080',font_size=20)
-# mato_grosso_markdown.printbeautiful('ANNUAL ANALYSIS FOR FOREST FIRES IN EACH STATE ')
-
-def annual_analysis_for_state(state_name):
-    states = fire_file.groupby('state')  # gropuing dataframe state wise
-
-    state_name_group = states.get_group(str(state_name))  # statename
-
-    state_name_year = state_name_group.groupby('year')  # Year by Groups
-
-    years = list(fire_file.year.unique())  # list of years from 1998 to 2019
-
-    total_annual_fires = []  # list to calculate numnber of forest fires from 1998 to 2019
-
-    for year in years:
-        total_annual_fires.append(state_name_year.get_group(year).number.sum())
-    years_df = pd.DataFrame(data={'Years': years,
-                                   'Total_Fires': total_annual_fires})
-
-    plt.figure(figsize=(20, 10))
-    fig = px.bar(years_df, x='Years', y='Total_Fires', color='Total_Fires')
-
-    fig.update_layout(
-        title="TRENDS OF FOREST FIRES IN " + str(state_name.upper()),
-        xaxis_title="YEARS",
-        yaxis_title="TOTAL NUMBER OF FIRES",
-        font=dict(
-            family="Courier New",
-            size=18,
-            color="black"
-        )
-    )
-    fig.show()
-
-
-annual_analysis_for_state('Rio')  # put the name of state here
-
-# year_2009_mato=bt(font_family='Times New Roman',color='green',font_size=19)
-# year_2009_mato.printbeautiful('MONTHLY ANALYSIS FOR FOREST FIRES IN EACH STATE')
-
-def monthly_fires_for_states(state_name, year_name):
-    states = fire_file.groupby('state')
-    state_name_group = states.get_group(str(state_name))
-    state_name_year = state_name_group.groupby('year')
-    year_X = state_name_year.get_group(year_name)
-    month_X = year_X.groupby('month')
-    months = ['january', 'feburary', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october',
-              'november', 'december']
-
-    monthly_fires = []
-    for month in months:
-        monthly_fires.append(month_X.get_group(month).number.sum())
-
-    annual_df = pd.DataFrame(data={
-        'Months': months,
-        'Monthly_fires': monthly_fires
-    })
-    plt.figure(figsize=(20, 8))
-
-    fig = px.bar(annual_df, x='Months', y='Monthly_fires', color='Monthly_fires')
-
-    title = "MONTHLY TRENDS OF FOREST FIRES IN " + str(state_name.upper() + " FOR YEAR " + str(year_name))
-    fig.update_layout(
-        title=title,
-        xaxis_title="MONTHS",
-        yaxis_title="TOTAL NUMBER OF FIRES",
-        font=dict(
-            family="Courier New",
-            size=18,
-            color="black"
-        )
-    )
-    fig.show()
-
-
-# monthly analysis for STATE OF RIO in year 2010
-monthly_fires_for_states('Rio', 2010)  # put the name of state and year
-
-# g=bt(font_family='Times New Roman',font_size=19,color='blue')
-# g.printbeautiful('''Hope you have liked my work. If you found this kernel interesting please upvote and if you any suugesstions comment box is for you.
-#                 Have a GOOD DAY''')
+print("Análise concluída! Os gráficos foram gerados e salvos.")
